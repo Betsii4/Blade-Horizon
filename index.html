@@ -1,0 +1,938 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Neon Sword Duel - Living Animation Beta</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        * {
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+        body {
+            background-color: #0d0f18;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+            box-shadow: 0 0 20px rgba(0, 255, 204, 0.2);
+            border-radius: 12px;
+        }
+        .touch-btn {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(8px);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.1s ease;
+        }
+        .touch-btn:active, .touch-btn.active {
+            background: rgba(255, 255, 255, 0.35);
+            transform: scale(0.95);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+            border-radius: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #06b6d4;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen p-2 text-white select-none">
+
+    <!-- Header / Title & Coins -->
+    <div class="w-full max-w-4xl flex justify-between items-center mb-2 px-4">
+        <h1 class="text-xl md:text-2xl font-black italic tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-pink-500">
+            NEON SWORD DUEL
+        </h1>
+        
+        <div class="flex items-center gap-3">
+            <div class="flex items-center gap-1.5 bg-amber-500/20 border border-amber-500/50 px-3 py-1 rounded-full shadow-[0_0_10px_rgba(245,158,11,0.3)]">
+                <span class="text-lg">🪙</span>
+                <span id="coinDisplay" class="font-extrabold text-amber-400 text-sm md:text-base">0</span>
+            </div>
+            <button id="openShopBtn" class="bg-gradient-to-r from-amber-500 to-yellow-600 text-slate-950 font-black px-3 py-1 md:px-4 md:py-1.5 rounded-xl shadow-lg hover:brightness-110 active:scale-95 transition-all flex items-center gap-1 text-xs md:text-sm">
+                <span>🛒</span> МАГАЗИН
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Game Container -->
+    <div class="relative w-full max-w-4xl aspect-[16/9] flex items-center justify-center">
+        <canvas id="gameCanvas" class="w-full h-full bg-slate-900 border border-slate-800"></canvas>
+
+        <!-- UI Overlay: Health Bars -->
+        <div class="absolute top-4 left-4 right-4 flex justify-between items-center pointer-events-none z-10">
+            <div class="w-2/5 bg-slate-900/80 p-2 rounded-xl border border-cyan-500/30 backdrop-blur-sm">
+                <div class="flex justify-between text-xs font-bold mb-1 text-cyan-400">
+                    <span id="playerName">ИГРОК 1</span>
+                    <span id="p1HealthText">100 HP</span>
+                </div>
+                <div class="w-full bg-gray-800 h-3.5 rounded-full overflow-hidden border border-gray-700">
+                    <div id="p1HealthBar" class="h-full bg-gradient-to-r from-cyan-500 to-blue-500 w-full transition-all duration-150"></div>
+                </div>
+            </div>
+
+            <div class="text-lg md:text-2xl font-black italic text-pink-500 px-2 drop-shadow-[0_0_8px_rgba(236,72,153,0.5)]">VS</div>
+
+            <div class="w-2/5 bg-slate-900/80 p-2 rounded-xl border border-pink-500/30 backdrop-blur-sm">
+                <div class="flex justify-between text-xs font-bold mb-1 text-pink-400">
+                    <span id="enemyName">ВРАГ #1</span>
+                    <span id="p2HealthText">100 HP</span>
+                </div>
+                <div class="w-full bg-gray-800 h-3.5 rounded-full overflow-hidden border border-gray-700">
+                    <div id="p2HealthBar" class="h-full bg-gradient-to-r from-pink-500 to-rose-600 w-full transition-all duration-150"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Shop Modal -->
+        <div id="shopModal" class="hidden absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col p-4 md:p-6 rounded-xl z-30 border border-cyan-500/30">
+            <div class="flex justify-between items-center mb-3 pb-2 border-b border-slate-800">
+                <h2 class="text-xl md:text-2xl font-black text-amber-400 flex items-center gap-2">
+                    <span>🛒</span> ARSENAL & STYLE
+                </h2>
+                <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-1.5 bg-amber-500/20 border border-amber-500/40 px-3 py-1 rounded-full text-amber-300 font-bold text-sm">
+                        <span>🪙</span> <span id="shopCoinDisplay">0</span>
+                    </div>
+                    <button id="closeShopBtn" class="text-gray-400 hover:text-white font-bold text-xl px-2 py-0.5 rounded-lg hover:bg-slate-800">✕</button>
+                </div>
+            </div>
+
+            <div class="flex gap-2 mb-3">
+                <button id="tabWeapons" class="flex-1 py-1.5 rounded-xl font-extrabold text-xs md:text-sm transition-all bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg">
+                    ⚔️ ОРУЖИЕ
+                </button>
+                <button id="tabAccessories" class="flex-1 py-1.5 rounded-xl font-extrabold text-xs md:text-sm transition-all bg-slate-800 text-gray-400 hover:text-white">
+                    👑 АКСЕССУАРЫ
+                </button>
+            </div>
+
+            <div id="itemList" class="grid grid-cols-1 md:grid-cols-2 gap-3 overflow-y-auto custom-scrollbar pr-1 flex-1"></div>
+        </div>
+
+        <!-- Game Over Modal -->
+        <div id="gameOverModal" class="hidden absolute inset-0 bg-black/85 backdrop-blur-md flex flex-col items-center justify-center rounded-xl z-20">
+            <h2 id="winnerText" class="text-2xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-pink-500 mb-2 animate-pulse text-center">
+                ПОБЕДА!
+            </h2>
+            <p id="rewardText" class="text-amber-400 font-bold mb-6 text-sm md:text-lg flex items-center gap-1">
+                +5 МОНЕТ
+            </p>
+            <div class="flex gap-4">
+                <button id="openShopFromWinBtn" class="px-5 py-2.5 bg-amber-500 text-slate-950 font-bold rounded-xl shadow-lg hover:brightness-110 active:scale-95 transition-all flex items-center gap-1.5 text-sm md:text-base">
+                    <span>🛒</span> МАГАЗИН
+                </button>
+                <button id="restartBtn" class="px-6 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold rounded-xl shadow-lg hover:brightness-110 active:scale-95 transition-all text-sm md:text-base">
+                    СЛЕДУЮЩИЙ БОЙ
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- On-Screen Controls for Mobile/Touch -->
+    <div class="w-full max-w-4xl mt-3 grid grid-cols-2 gap-4 px-2">
+        <div class="flex gap-2 justify-start items-center">
+            <button id="btnLeft" class="touch-btn w-14 h-14 md:w-16 md:h-16 rounded-2xl flex items-center justify-center text-xl font-bold text-cyan-400 active:bg-cyan-500/30">◄</button>
+            <button id="btnJump" class="touch-btn w-14 h-14 md:w-16 md:h-16 rounded-2xl flex items-center justify-center text-xl font-bold text-cyan-400 active:bg-cyan-500/30">▲</button>
+            <button id="btnRight" class="touch-btn w-14 h-14 md:w-16 md:h-16 rounded-2xl flex items-center justify-center text-xl font-bold text-cyan-400 active:bg-cyan-500/30">►</button>
+        </div>
+
+        <div class="flex gap-3 justify-end items-center">
+            <button id="btnBlock" class="touch-btn w-16 h-16 md:w-18 md:h-18 rounded-full flex flex-col items-center justify-center font-bold text-amber-400 active:bg-amber-500/30 border-amber-500/40">
+                <span class="text-lg">🛡️</span>
+                <span class="text-[10px]">БЛОК</span>
+            </button>
+            <button id="btnAttack" class="touch-btn w-16 h-16 md:w-18 md:h-18 rounded-full flex flex-col items-center justify-center font-bold text-pink-400 active:bg-pink-500/30 border-pink-500/40 relative overflow-hidden">
+                <span class="text-lg z-10">⚔️</span>
+                <span id="btnAttackLabel" class="text-[10px] z-10 transition-colors">УДАР</span>
+                <div id="attackCdOverlay" class="absolute inset-0 bg-slate-950/80 origin-bottom scale-y-0 transition-transform duration-75 pointer-events-none flex items-center justify-center"></div>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const WEAPONS = [
+            { id: 'default', name: 'Стандартный меч', damage: 12, price: 0, length: 65, type: 'sword', color: '#38bdf8', trailColor: 'rgba(56, 189, 248, 0.4)', cooldown: 38, desc: 'Базовый клинок с аккуратным выпадом.' },
+            { id: 'broadsword', name: 'Железный палаш', damage: 18, price: 20, length: 72, type: 'broadsword', color: '#cbd5e1', trailColor: 'rgba(203, 213, 225, 0.4)', cooldown: 48, desc: 'Тяжелый меч с размашистым ударом.' },
+            { id: 'flame', name: 'Огненный клинок', damage: 24, price: 45, length: 75, type: 'flame', color: '#f97316', trailColor: 'rgba(249, 115, 22, 0.5)', cooldown: 42, desc: 'Пылающее лезвие, оставляющее искры.' },
+            { id: 'axe', name: 'Топор Викинга', damage: 32, price: 75, length: 68, type: 'axe', color: '#a855f7', trailColor: 'rgba(168, 85, 247, 0.4)', cooldown: 58, desc: 'Медленный, но сокрушительный удар.' },
+            { id: 'katana', name: 'Катана Самурая', damage: 35, price: 120, length: 80, type: 'katana', color: '#10b981', trailColor: 'rgba(16, 185, 129, 0.5)', cooldown: 34, desc: 'Быстрый и смертельный выпад.' },
+            { id: 'lightsaber', name: 'Неоновый световой меч', damage: 45, price: 200, length: 85, type: 'lightsaber', color: '#f43f5e', trailColor: 'rgba(244, 63, 94, 0.6)', cooldown: 36, desc: 'Легендарное энергетическое оружие!' }
+        ];
+
+        const ACCESSORIES = [
+            { id: 'none', name: 'Без аксессуара', price: 0, type: 'none', color: '#ffffff', desc: 'Классический вид без украшений.' },
+            { id: 'bandana', name: 'Боевая Бандана', price: 15, type: 'bandana', color: '#ef4444', desc: 'Простая красная повязка ниндзя.' },
+            { id: 'sunglasses', name: 'Крутые Очки', price: 35, type: 'sunglasses', color: '#111827', desc: 'Темные стильные очки с неоновыми бликами.' },
+            { id: 'viking_hat', name: 'Шлем Викинга', price: 60, type: 'viking_hat', color: '#94a3b8', desc: 'Суровый рогатый шлем севера.' },
+            { id: 'knight_helmet', name: 'Рыцарский Шлем', price: 100, type: 'knight_helmet', color: '#cbd5e1', desc: 'Прочный стальной шлем с забралом.' },
+            { id: 'crown', name: 'Корона Короля', price: 180, type: 'crown', color: '#f59e0b', desc: 'Золотая сверкающая корона правителя.' },
+            { id: 'demon_wings', name: 'Демоническая Аура и Крылья', price: 300, type: 'demon_wings', color: '#ec4899', desc: 'Легендарные неоновые крылья и огненные рога!' }
+        ];
+
+        let coins = 0;
+        let defeatedEnemies = 0;
+        let ownedWeapons = ['default'];
+        let currentWeaponId = 'default';
+        let ownedAccessories = ['none'];
+        let currentAccessoryId = 'none';
+        let activeTab = 'weapons';
+        let isPausedForShop = false;
+        let gameOver = false;
+        let animTick = 0;
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = 1000;
+        canvas.height = 562;
+
+        const GRAVITY = 0.65;
+        const GROUND_Y = 460;
+
+        let particles = [];
+        let floatingTexts = [];
+
+        const keys = { left: false, right: false, jump: false, attack: false, block: false };
+
+        class Fighter {
+            constructor({ x, y, color, isAI = false }) {
+                this.x = x;
+                this.y = y;
+                this.width = 40;
+                this.height = 90;
+                this.vx = 0;
+                this.vy = 0;
+                this.speed = 5.5;
+                this.jumpStrength = -14;
+                this.color = color;
+                this.isGrounded = false;
+                this.facing = isAI ? -1 : 1;
+
+                this.hp = 100;
+                this.maxHp = 100;
+                
+                this.isAttacking = false;
+                this.isBlocking = false;
+                this.attackProgress = 0;
+                this.attackCooldown = 0;
+
+                this.squatTimer = 0;
+
+                this.legAngle = 0;
+                this.isAI = isAI;
+                this.aiDecisionTimer = 0;
+                this.aiAction = 'idle';
+
+                this.weapon = WEAPONS[0];
+                this.accessory = ACCESSORIES[0];
+            }
+
+            setWeapon(w) { this.weapon = w; }
+            setAccessory(a) { this.accessory = a; }
+
+            update(opponent) {
+                if (isPausedForShop) return;
+
+                if (this.squatTimer > 0) {
+                    this.squatTimer--;
+                    if (this.squatTimer === 0) {
+                        this.vy = this.jumpStrength;
+                    }
+                }
+
+                this.vy += GRAVITY;
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vx *= 0.85;
+
+                if (this.x < 30) this.x = 30;
+                if (this.x + this.width > canvas.width - 30) this.x = canvas.width - 30 - this.width;
+
+                if (this.y + this.height >= GROUND_Y) {
+                    this.y = GROUND_Y - this.height;
+                    this.vy = 0;
+                    this.isGrounded = true;
+                } else {
+                    this.isGrounded = false;
+                }
+
+                if (!this.isAttacking && Math.abs(opponent.x - this.x) > 10) {
+                    this.facing = opponent.x > this.x ? 1 : -1;
+                }
+
+                if (this.attackCooldown > 0) this.attackCooldown--;
+
+                if (this.isAttacking) {
+                    this.attackProgress += 0.2;
+                    if (this.attackProgress >= Math.PI) {
+                        this.isAttacking = false;
+                        this.attackProgress = 0;
+                    }
+                }
+
+                if (Math.abs(this.vx) > 0.5 && this.isGrounded) {
+                    this.legAngle += 0.2;
+                } else {
+                    this.legAngle = 0;
+                }
+
+                if (this.weapon.type === 'flame' && Math.random() < 0.3) {
+                    const tip = this.getSwordTipPosition();
+                    createSparks(tip.x, tip.y, '#f97316', 1, 1.5);
+                }
+
+                if (this.isAI && !gameOver) {
+                    this.updateAI(opponent);
+                }
+            }
+
+            triggerJump() {
+                if (this.isGrounded && this.squatTimer <= 0) {
+                    this.squatTimer = 4;
+                }
+            }
+
+            getSwordTipPosition() {
+                const extend = this.isAttacking ? Math.sin(this.attackProgress) * 35 : 0;
+                const totalLen = this.weapon.length + extend;
+                const shoulderX = this.x + this.width / 2;
+                const shoulderY = this.y + this.height / 2 - 15;
+                return {
+                    x: shoulderX + this.facing * totalLen,
+                    y: shoulderY + 5
+                };
+            }
+
+            updateAI(player) {
+                const dist = Math.abs((player.x + player.width/2) - (this.x + this.width/2));
+                this.aiDecisionTimer++;
+
+                if (this.aiDecisionTimer > 20) {
+                    this.aiDecisionTimer = 0;
+                    const rand = Math.random();
+
+                    if (dist < this.weapon.length + 20) {
+                        if (player.isAttacking && rand < 0.7) this.aiAction = 'block';
+                        else if (rand < 0.6) this.aiAction = 'attack';
+                        else this.aiAction = 'retreat';
+                    } else if (dist < 300) {
+                        if (rand < 0.65) this.aiAction = 'approach';
+                        else if (rand < 0.8) this.aiAction = 'jump';
+                        else this.aiAction = 'idle';
+                    } else {
+                        this.aiAction = 'approach';
+                    }
+                }
+
+                this.isBlocking = false;
+
+                if (this.aiAction === 'approach') {
+                    this.vx = this.facing * this.speed * 0.75;
+                } else if (this.aiAction === 'retreat') {
+                    this.vx = -this.facing * this.speed * 0.6;
+                } else if (this.aiAction === 'jump') {
+                    this.triggerJump();
+                    this.aiAction = 'approach';
+                } else if (this.aiAction === 'block') {
+                    this.isBlocking = true;
+                } else if (this.aiAction === 'attack') {
+                    this.performAttack(player);
+                }
+            }
+
+            performAttack(opponent) {
+                if (this.attackCooldown <= 0 && !this.isAttacking && !this.isBlocking && !isPausedForShop) {
+                    this.isAttacking = true;
+                    this.attackProgress = 0;
+                    this.attackCooldown = this.weapon.cooldown;
+                    this.vx += this.facing * 4;
+
+                    setTimeout(() => {
+                        this.checkHit(opponent);
+                    }, 80);
+                }
+            }
+
+            checkHit(opponent) {
+                if (gameOver || isPausedForShop) return;
+
+                const swordTip = this.getSwordTipPosition();
+                const opponentCenterX = opponent.x + opponent.width / 2;
+                const distance = Math.abs(swordTip.x - opponentCenterX);
+
+                if (distance < this.weapon.length * 0.75 && Math.abs(opponent.y - this.y) < 70) {
+                    let damage = this.weapon.damage + Math.floor(Math.random() * 4);
+
+                    if (opponent.isBlocking) {
+                        damage = Math.floor(damage * 0.2);
+                        createSparks(swordTip.x, opponent.y + 30, '#f59e0b', 8, 4);
+                        addFloatingText('БЛОК!', opponent.x + 10, opponent.y - 15, '#f59e0b');
+                    } else {
+                        createSparks(swordTip.x, opponent.y + 30, this.weapon.color, 14, 5);
+                        addFloatingText(`-${damage}`, opponent.x + 10, opponent.y - 15, '#ef4444');
+                    }
+
+                    opponent.hp = Math.max(0, opponent.hp - damage);
+                    opponent.vx += this.facing * (opponent.isBlocking ? 2 : 7);
+
+                    updateUI();
+
+                    if (opponent.hp <= 0) {
+                        if (this === player) {
+                            coins += 5;
+                            defeatedEnemies++;
+                            saveGameState();
+                            updateUI();
+                            endGame('ПОБЕДА!', '+5 МОНЕТ');
+                        } else {
+                            endGame('ВЫ ПОРАЖЕНЫ!', 'ПОПРОБУЙТЕ СНОВА');
+                        }
+                    }
+                }
+            }
+
+            draw() {
+                ctx.save();
+
+                const isSquatting = this.squatTimer > 0;
+                const squatOffset = isSquatting ? 10 : 0;
+                ctx.translate(this.x + this.width / 2, this.y + this.height / 2 + squatOffset);
+
+                const dir = this.facing;
+                const glowColor = this.color;
+                const thrustMult = Math.sin(this.attackProgress);
+
+                const spineTilt = this.isAttacking ? dir * thrustMult * 0.3 : 0;
+                ctx.rotate(spineTilt);
+
+                if (this.accessory && this.accessory.type === 'demon_wings') {
+                    this.drawDemonWings(dir);
+                }
+
+                if (this.isBlocking) {
+                    ctx.save();
+                    ctx.strokeStyle = '#f59e0b';
+                    ctx.fillStyle = 'rgba(245, 158, 11, 0.25)';
+                    ctx.lineWidth = 4;
+                    ctx.beginPath();
+                    ctx.arc(dir * 20, 0, 32, -Math.PI / 2, Math.PI / 2, dir < 0);
+                    ctx.stroke();
+                    ctx.fill();
+                    ctx.restore();
+                }
+
+                const headRadius = 14;
+                ctx.strokeStyle = glowColor;
+                ctx.shadowColor = glowColor;
+                ctx.shadowBlur = 10;
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.arc(0, -this.height / 2 + headRadius, headRadius, 0, Math.PI * 2);
+                ctx.stroke();
+
+                this.drawAccessoryOverlay(headRadius, dir);
+
+                ctx.beginPath();
+                ctx.moveTo(0, -this.height / 2 + headRadius * 2);
+                ctx.lineTo(0, 15);
+                ctx.stroke();
+
+                ctx.beginPath();
+                if (this.isAttacking) {
+                    ctx.moveTo(0, 15);
+                    ctx.lineTo(dir * 22, this.height / 2 - squatOffset);
+                    ctx.moveTo(0, 15);
+                    ctx.lineTo(-dir * 18, this.height / 2 - squatOffset);
+                } else if (isSquatting) {
+                    ctx.moveTo(0, 15);
+                    ctx.lineTo(-12, this.height / 2 - squatOffset);
+                    ctx.moveTo(0, 15);
+                    ctx.lineTo(12, this.height / 2 - squatOffset);
+                } else {
+                    const legOffset1 = Math.sin(this.legAngle) * 14;
+                    const legOffset2 = -Math.sin(this.legAngle) * 14;
+                    ctx.moveTo(0, 15);
+                    ctx.lineTo(legOffset1, this.height / 2);
+                    ctx.moveTo(0, 15);
+                    ctx.lineTo(legOffset2, this.height / 2);
+                }
+                ctx.stroke();
+
+                ctx.save();
+                ctx.translate(0, -5);
+
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                if (this.isAttacking) {
+                    ctx.lineTo(-dir * 16, 12);
+                } else {
+                    ctx.lineTo(-dir * 10, 15);
+                }
+                ctx.stroke();
+
+                this.drawWeaponThrust(dir);
+                ctx.restore();
+
+                // Cooldown Bar above fighter head
+                if (this.attackCooldown > 0) {
+                    const cdRatio = this.attackCooldown / this.maxCooldown;
+                    const barWidth = 42;
+                    const barHeight = 5;
+                    const barX = -barWidth / 2;
+                    const barY = -this.height / 2 - 18;
+
+                    ctx.save();
+                    // Background bar container
+                    ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.roundRect(barX - 1, barY - 1, barWidth + 2, barHeight + 2, 3);
+                    ctx.fill();
+                    ctx.stroke();
+
+                    // Cooldown progress fill
+                    const fillColor = this === player ? '#06b6d4' : '#f43f5e';
+                    ctx.fillStyle = fillColor;
+                    ctx.shadowColor = fillColor;
+                    ctx.shadowBlur = 6;
+                    ctx.beginPath();
+                    ctx.roundRect(barX, barY, Math.max(0, barWidth * (1 - cdRatio)), barHeight, 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+
+                ctx.restore();
+            }
+
+            drawWeaponThrust(dir) {
+                const w = this.weapon;
+                const thrustOffset = this.isAttacking ? Math.sin(this.attackProgress) * 35 : 0;
+                const startX = dir * 10;
+                const endX = dir * (w.length + thrustOffset);
+
+                ctx.shadowColor = w.color;
+                ctx.shadowBlur = 14;
+
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(startX, 5);
+                ctx.stroke();
+
+                if (w.type === 'axe') {
+                    ctx.strokeStyle = '#78350f';
+                    ctx.lineWidth = 4;
+                    ctx.beginPath();
+                    ctx.moveTo(startX, 5);
+                    ctx.lineTo(endX, 5);
+                    ctx.stroke();
+
+                    ctx.fillStyle = w.color;
+                    ctx.beginPath();
+                    ctx.arc(endX, 5, 16, -Math.PI/2, Math.PI/2, dir < 0);
+                    ctx.fill();
+                } else if (w.type === 'lightsaber') {
+                    ctx.strokeStyle = '#94a3b8';
+                    ctx.lineWidth = 5;
+                    ctx.beginPath();
+                    ctx.moveTo(startX, 5);
+                    ctx.lineTo(startX + dir * 12, 5);
+                    ctx.stroke();
+
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 4;
+                    ctx.shadowBlur = 20;
+                    ctx.beginPath();
+                    ctx.moveTo(startX + dir * 12, 5);
+                    ctx.lineTo(endX, 5);
+                    ctx.stroke();
+                } else {
+                    ctx.strokeStyle = w.color;
+                    ctx.lineWidth = w.type === 'broadsword' ? 6 : (w.type === 'katana' ? 3 : 4);
+                    ctx.beginPath();
+                    ctx.moveTo(startX, 5);
+                    ctx.lineTo(endX, 5);
+                    ctx.stroke();
+                }
+
+                if (this.isAttacking) {
+                    ctx.fillStyle = w.trailColor;
+                    ctx.globalAlpha = 0.5;
+                    ctx.fillRect(dir > 0 ? startX : endX, -5, Math.abs(endX - startX), 18);
+                    ctx.globalAlpha = 1.0;
+                }
+            }
+
+            drawDemonWings(dir) {
+                ctx.save();
+                ctx.shadowColor = '#ec4899';
+                ctx.shadowBlur = 15;
+                ctx.strokeStyle = '#ec4899';
+                ctx.fillStyle = 'rgba(236, 72, 153, 0.25)';
+                ctx.lineWidth = 3;
+
+                const wingFlap = Math.sin(animTick * 0.1) * 0.15;
+                [-1, 1].forEach(side => {
+                    ctx.save();
+                    ctx.scale(side, 1);
+                    ctx.rotate(wingFlap * side);
+                    ctx.beginPath();
+                    ctx.moveTo(-5, -20);
+                    ctx.quadraticCurveTo(-35, -50, -50, -20);
+                    ctx.quadraticCurveTo(-35, -10, -25, 10);
+                    ctx.restore();
+                });
+                ctx.restore();
+            }
+
+            drawAccessoryOverlay(headRadius, dir) {
+                const headY = -this.height / 2 + headRadius;
+                const acc = this.accessory;
+                if (!acc || acc.type === 'none') return;
+
+                ctx.save();
+                ctx.shadowColor = acc.color || '#fff';
+                ctx.shadowBlur = 8;
+
+                if (acc.type === 'bandana') {
+                    ctx.fillStyle = '#ef4444';
+                    ctx.fillRect(-14, headY - 4, 28, 6);
+                } else if (acc.type === 'sunglasses') {
+                    ctx.fillStyle = '#0f172a';
+                    ctx.strokeStyle = '#38bdf8';
+                    ctx.lineWidth = 2;
+                    ctx.fillRect(dir * 2, headY - 3, dir * 11, 7);
+                } else if (acc.type === 'viking_hat') {
+                    ctx.fillStyle = '#64748b';
+                    ctx.beginPath();
+                    ctx.arc(0, headY - 2, 15, Math.PI, 0);
+                    ctx.fill();
+                } else if (acc.type === 'knight_helmet') {
+                    ctx.fillStyle = '#94a3b8';
+                    ctx.beginPath();
+                    ctx.arc(0, headY - 1, 15, Math.PI * 0.9, Math.PI * 0.1, false);
+                    ctx.fill();
+                } else if (acc.type === 'crown') {
+                    ctx.fillStyle = '#f59e0b';
+                    ctx.beginPath();
+                    ctx.moveTo(-10, headY - 12);
+                    ctx.lineTo(0, headY - 24);
+                    ctx.lineTo(10, headY - 12);
+                    ctx.closePath();
+                    ctx.fill();
+                } else if (acc.type === 'demon_wings') {
+                    ctx.fillStyle = '#f43f5e';
+                    ctx.beginPath();
+                    ctx.moveTo(-8, headY - 10);
+                    ctx.lineTo(-15, headY - 28);
+                    ctx.lineTo(-2, headY - 12);
+                    ctx.fill();
+                }
+                ctx.restore();
+            }
+        }
+
+        function createSparks(x, y, color, count, speedMult = 5) {
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x, y,
+                    vx: (Math.random() - 0.5) * speedMult,
+                    vy: (Math.random() - 0.5) * speedMult,
+                    size: Math.random() * 4 + 2,
+                    color,
+                    life: 1.0
+                });
+            }
+        }
+
+        function addFloatingText(text, x, y, color) {
+            floatingTexts.push({ text, x, y, color, life: 1.0 });
+        }
+
+        const player = new Fighter({ x: 200, y: 300, color: '#06b6d4', isAI: false });
+        const enemy = new Fighter({ x: 740, y: 300, color: '#ec4899', isAI: true });
+
+        function loadGameState() {
+            try {
+                const savedCoins = localStorage.getItem('nsd_coins');
+                const savedWeapons = localStorage.getItem('nsd_weapons');
+                const savedEquippedWep = localStorage.getItem('nsd_equipped_weapon');
+                const savedAccessories = localStorage.getItem('nsd_accessories');
+                const savedEquippedAcc = localStorage.getItem('nsd_equipped_accessory');
+
+                if (savedCoins !== null) coins = parseInt(savedCoins, 10);
+                if (savedWeapons !== null) ownedWeapons = JSON.parse(savedWeapons);
+                if (savedEquippedWep !== null) currentWeaponId = savedEquippedWep;
+                if (savedAccessories !== null) ownedAccessories = JSON.parse(savedAccessories);
+                if (savedEquippedAcc !== null) currentAccessoryId = savedEquippedAcc;
+            } catch (e) {}
+
+            equipWeapon(currentWeaponId);
+            equipAccessory(currentAccessoryId);
+            updateUI();
+        }
+
+        function saveGameState() {
+            try {
+                localStorage.setItem('nsd_coins', coins);
+                localStorage.setItem('nsd_weapons', JSON.stringify(ownedWeapons));
+                localStorage.setItem('nsd_equipped_weapon', currentWeaponId);
+                localStorage.setItem('nsd_accessories', JSON.stringify(ownedAccessories));
+                localStorage.setItem('nsd_equipped_accessory', currentAccessoryId);
+            } catch (e) {}
+        }
+
+        function equipWeapon(weaponId) {
+            currentWeaponId = weaponId;
+            const wObj = WEAPONS.find(w => w.id === weaponId) || WEAPONS[0];
+            player.setWeapon(wObj);
+            saveGameState();
+        }
+
+        function equipAccessory(accId) {
+            currentAccessoryId = accId;
+            const aObj = ACCESSORIES.find(a => a.id === accId) || ACCESSORIES[0];
+            player.setAccessory(aObj);
+            saveGameState();
+        }
+
+        function updateEnemyPreset() {
+            const levelIndex = Math.min(defeatedEnemies, WEAPONS.length - 1);
+            enemy.setWeapon(WEAPONS[levelIndex]);
+            const accIndex = Math.min(defeatedEnemies, ACCESSORIES.length - 1);
+            enemy.setAccessory(ACCESSORIES[accIndex]);
+            document.getElementById('enemyName').innerText = `ВРАГ #${defeatedEnemies + 1}`;
+        }
+
+        function updateUI() {
+            document.getElementById('coinDisplay').innerText = coins;
+            document.getElementById('shopCoinDisplay').innerText = coins;
+            document.getElementById('p1HealthBar').style.width = `${Math.max(0, player.hp)}%`;
+            document.getElementById('p1HealthText').innerText = `${Math.max(0, player.hp)} HP`;
+            document.getElementById('p2HealthBar').style.width = `${Math.max(0, enemy.hp)}%`;
+            document.getElementById('p2HealthText').innerText = `${Math.max(0, enemy.hp)} HP`;
+
+            // Update Attack Button Cooldown Overlay & Status
+            const attackOverlay = document.getElementById('attackCdOverlay');
+            const attackLabel = document.getElementById('btnAttackLabel');
+            if (attackOverlay) {
+                const ratio = player.attackCooldown / player.maxCooldown;
+                attackOverlay.style.transform = `scaleY(${Math.max(0, ratio)})`;
+                
+                if (player.attackCooldown > 0) {
+                    attackLabel.innerText = "КД...";
+                    attackLabel.className = "text-[10px] z-10 text-gray-400 font-bold";
+                } else {
+                    attackLabel.innerText = "УДАР";
+                    attackLabel.className = "text-[10px] z-10 text-pink-400 font-bold";
+                }
+            }
+        }
+
+        function renderShop() {
+            const listEl = document.getElementById('itemList');
+            listEl.innerHTML = '';
+            const isWeaponTab = activeTab === 'weapons';
+            const items = isWeaponTab ? WEAPONS : ACCESSORIES;
+
+            items.forEach(item => {
+                const isOwned = isWeaponTab ? ownedWeapons.includes(item.id) : ownedAccessories.includes(item.id);
+                const isEquipped = isWeaponTab ? currentWeaponId === item.id : currentAccessoryId === item.id;
+
+                const card = document.createElement('div');
+                card.className = `p-3 rounded-xl border flex flex-col justify-between transition-all ${isEquipped ? 'bg-cyan-950/40 border-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.3)]' : 'bg-slate-900/80 border-slate-800'}`;
+
+                card.innerHTML = `
+                    <div>
+                        <div class="flex justify-between items-start mb-1">
+                            <h3 class="font-bold text-sm md:text-base" style="color: ${item.color}">${item.name}</h3>
+                            ${isWeaponTab ? `<span class="text-xs font-bold text-pink-400 bg-pink-500/10 px-2 py-0.5 rounded-md border border-pink-500/30">Урон: ${item.damage}</span>` : ''}
+                        </div>
+                        <p class="text-xs text-gray-400 mb-3">${item.desc}</p>
+                    </div>
+                    <div class="flex justify-between items-center mt-2 pt-2 border-t border-slate-800">
+                        <span class="text-xs font-bold text-amber-400 flex items-center gap-1">${isOwned ? 'КУПЛЕНО' : `🪙 ${item.price}`}</span>
+                        <button class="shop-action-btn text-xs font-bold px-3 py-1.5 rounded-lg transition-all ${isEquipped ? 'bg-cyan-500 text-slate-950 cursor-default' : (isOwned ? 'bg-slate-700 hover:bg-slate-600 text-white' : (coins >= item.price ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 font-black' : 'bg-slate-800 text-gray-500 cursor-not-allowed'))}">
+                            ${isEquipped ? 'НАДЕТО' : (isOwned ? 'НАДЕТЬ' : 'КУПИТЬ')}
+                        </button>
+                    </div>
+                `;
+                card.querySelector('.shop-action-btn').addEventListener('click', () => handleShopAction(item, isWeaponTab));
+                listEl.appendChild(card);
+            });
+        }
+
+        function handleShopAction(item, isWeaponTab) {
+            if (isWeaponTab) {
+                if (ownedWeapons.includes(item.id)) equipWeapon(item.id);
+                else if (coins >= item.price) { coins -= item.price; ownedWeapons.push(item.id); equipWeapon(item.id); saveGameState(); }
+            } else {
+                if (ownedAccessories.includes(item.id)) equipAccessory(item.id);
+                else if (coins >= item.price) { coins -= item.price; ownedAccessories.push(item.id); equipAccessory(item.id); saveGameState(); }
+            }
+            updateUI();
+            renderShop();
+        }
+
+        function switchTab(tab) {
+            activeTab = tab;
+            document.getElementById('tabWeapons').className = tab === 'weapons' ? 'flex-1 py-1.5 rounded-xl font-extrabold text-xs md:text-sm bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg' : 'flex-1 py-1.5 rounded-xl font-extrabold text-xs md:text-sm bg-slate-800 text-gray-400';
+            document.getElementById('tabAccessories').className = tab === 'accessories' ? 'flex-1 py-1.5 rounded-xl font-extrabold text-xs md:text-sm bg-gradient-to-r from-pink-500 to-rose-600 text-white shadow-lg' : 'flex-1 py-1.5 rounded-xl font-extrabold text-xs md:text-sm bg-slate-800 text-gray-400';
+            renderShop();
+        }
+
+        function openShop() { isPausedForShop = true; renderShop(); document.getElementById('shopModal').classList.remove('hidden'); }
+        function closeShop() { isPausedForShop = false; document.getElementById('shopModal').classList.add('hidden'); }
+        function endGame(title, subtitle) {
+            gameOver = true;
+            document.getElementById('winnerText').innerText = title;
+            document.getElementById('rewardText').innerText = subtitle;
+            document.getElementById('gameOverModal').classList.remove('hidden');
+        }
+
+        function resetGame() {
+            player.hp = 100; player.x = 200; player.y = 300; player.vx = 0; player.vy = 0;
+            enemy.hp = 100; enemy.x = 740; enemy.y = 300; enemy.vx = 0; enemy.vy = 0;
+            updateEnemyPreset();
+            particles = []; floatingTexts = []; gameOver = false;
+            updateUI();
+            document.getElementById('gameOverModal').classList.add('hidden');
+            closeShop();
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (gameOver || isPausedForShop) return;
+            const code = e.code;
+            if (code === 'KeyA' || code === 'ArrowLeft') keys.left = true;
+            if (code === 'KeyD' || code === 'ArrowRight') keys.right = true;
+            if (code === 'KeyW' || code === 'ArrowUp') player.triggerJump();
+            if (code === 'KeyJ' || code === 'Space') player.performAttack(enemy);
+            if (code === 'KeyK') player.isBlocking = true;
+        });
+
+        window.addEventListener('keyup', (e) => {
+            const code = e.code;
+            if (code === 'KeyA' || code === 'ArrowLeft') keys.left = false;
+            if (code === 'KeyD' || code === 'ArrowRight') keys.right = false;
+            if (code === 'KeyK') player.isBlocking = false;
+        });
+
+        function setupTouchButton(id, onPress, onRelease) {
+            const btn = document.getElementById(id);
+            if (!btn) return;
+            const start = (e) => { e.preventDefault(); btn.classList.add('active'); onPress(); };
+            const end = (e) => { e.preventDefault(); btn.classList.remove('active'); if (onRelease) onRelease(); };
+            btn.addEventListener('touchstart', start);
+            btn.addEventListener('touchend', end);
+            btn.addEventListener('mousedown', start);
+            btn.addEventListener('mouseup', end);
+            btn.addEventListener('mouseleave', end);
+        }
+
+        setupTouchButton('btnLeft', () => keys.left = true, () => keys.left = false);
+        setupTouchButton('btnRight', () => keys.right = true, () => keys.right = false);
+        setupTouchButton('btnJump', () => player.triggerJump());
+        setupTouchButton('btnAttack', () => player.performAttack(enemy));
+        setupTouchButton('btnBlock', () => player.isBlocking = true, () => player.isBlocking = false);
+
+        document.getElementById('openShopBtn').addEventListener('click', openShop);
+        document.getElementById('openShopFromWinBtn').addEventListener('click', openShop);
+        document.getElementById('closeShopBtn').addEventListener('click', closeShop);
+        document.getElementById('restartBtn').addEventListener('click', resetGame);
+        document.getElementById('tabWeapons').addEventListener('click', () => switchTab('weapons'));
+        document.getElementById('tabAccessories').addEventListener('click', () => switchTab('accessories'));
+
+        function handleInput() {
+            if (gameOver || isPausedForShop || player.isBlocking) return;
+            if (keys.left) player.vx = -player.speed;
+            if (keys.right) player.vx = player.speed;
+        }
+
+        function drawArena() {
+            const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            grad.addColorStop(0, '#0f172a');
+            grad.addColorStop(1, '#1e1b4b');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.strokeStyle = '#38bdf8';
+            ctx.shadowColor = '#38bdf8';
+            ctx.shadowBlur = 15;
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(0, GROUND_Y);
+            ctx.lineTo(canvas.width, GROUND_Y);
+            ctx.stroke();
+
+            ctx.strokeStyle = 'rgba(56, 189, 248, 0.15)';
+            ctx.lineWidth = 1;
+            for (let x = 0; x < canvas.width; x += 40) {
+                ctx.beginPath();
+                ctx.moveTo(x, GROUND_Y);
+                ctx.lineTo(x - 20, canvas.height);
+                ctx.stroke();
+            }
+            ctx.shadowBlur = 0;
+        }
+
+        function gameLoop() {
+            animTick++;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawArena();
+
+            handleInput();
+            player.update(enemy);
+            enemy.update(player);
+
+            player.draw();
+            enemy.draw();
+
+            particles.forEach((p, index) => {
+                p.x += p.vx; p.y += p.vy; p.life -= 0.03;
+                if (p.life <= 0) particles.splice(index, 1);
+                else {
+                    ctx.fillStyle = p.color;
+                    ctx.globalAlpha = p.life;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.globalAlpha = 1.0;
+                }
+            });
+
+            floatingTexts.forEach((ft, index) => {
+                ft.y -= 1; ft.life -= 0.02;
+                if (ft.life <= 0) floatingTexts.splice(index, 1);
+                else {
+                    ctx.font = 'bold 20px sans-serif';
+                    ctx.fillStyle = ft.color;
+                    ctx.globalAlpha = ft.life;
+                    ctx.fillText(ft.text, ft.x, ft.y);
+                    ctx.globalAlpha = 1.0;
+                }
+            });
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        window.onload = function() {
+            loadGameState();
+            updateEnemyPreset();
+            gameLoop();
+        };
+    </script>
+</body>
+</html>
